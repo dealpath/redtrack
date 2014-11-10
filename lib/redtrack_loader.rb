@@ -249,7 +249,7 @@ module RedTrack
     def get_last_kinesis_shard_load(redshift_table,stream_name,shard_description)
 
       query = "SELECT * FROM kinesis_loads WHERE table_name='#{redshift_table}' AND stream_name='#{stream_name}' AND shard_id='#{shard_description[:shard_id]}' ORDER BY load_timestamp DESC LIMIT 1;"
-      result_set = @redshift_conn.exec(query)
+      result_set = exec(query)
 
       if result_set.ntuples == 1
         result = {}
@@ -279,7 +279,7 @@ module RedTrack
 
       shard_id = shard_description[:shard_id]
 
-      @redshift_conn.exec('BEGIN')
+      exec('BEGIN')
 
       # Get all loads in the last week for this shard. Do range comparison in ruby since Kinesis sequence numbers are 56 digits,
       # Redshift cannot handle > 38 digits, and ruby can handle arbitrary large numerical numbers.
@@ -287,7 +287,7 @@ module RedTrack
       # http://patshaughnessy.net/2014/1/9/how-big-is-a-bignum
       query = 'SELECT * FROM kinesis_loads ' +
         "WHERE table_name='#{redshift_table}' AND stream_name='#{stream_name}' AND shard_id='#{shard_id}'"
-      loads_result_set = @redshift_conn.exec(query)
+      loads_result_set = exec(query)
       duplicate_load=false
       duplicated_load = nil
       loads_result_set.each do |row|
@@ -323,7 +323,7 @@ module RedTrack
           load_file_result=load_file_into_redshift(redshift_table,s3_url)
 
           # Commit transaction
-          @redshift_conn.exec('COMMIT')
+          exec('COMMIT')
 
           # Report back the success and the number of rows loaded into redshift
           result = {
@@ -333,7 +333,7 @@ module RedTrack
         rescue Exception => e
 
           # Abort transaction
-          @redshift_conn.exec('ROLLBACK')
+          exec('ROLLBACK')
 
           # Get more information about the error
           load_error = get_last_load_errors(redshift_table,s3_url)
@@ -347,7 +347,7 @@ module RedTrack
       else
 
         # Abort the transaction
-        @redshift_conn.exec('ROLLBACK')
+        exec('ROLLBACK')
         result = {
           :success => false,
           :load_error => 'Duplicated kinesis range',
@@ -368,7 +368,6 @@ module RedTrack
       cmd="COPY #{redshift_table} from '#{s3_url}' with " +
         "credentials 'aws_access_key_id=#{@options[:access_key_id]};aws_secret_access_key=#{@options[:secret_access_key]}' " +
         "json 'auto' timeformat 'auto' GZIP MAXERROR #{@options[:max_error]};"
-      @logger.debug(cmd)
       records=nil
 
       # Check to see how many rows are loaded (via the INFO)
@@ -377,7 +376,7 @@ module RedTrack
         records = matches[1].to_i
       }
 
-      @redshift_conn.exec(cmd)
+      exec(cmd)
 
       result = {
         :success => true,
@@ -399,7 +398,7 @@ module RedTrack
         'from stl_load_errors sl, stv_tbl_perm sp ' +
         "where sl.tbl = sp.id AND sp.name='#{redshift_table}' AND sl.filename='#{s3_url}' " +
         'ORDER BY starttime DESC LIMIT 20;'
-      result_set=@redshift_conn.exec(cmd)
+      result_set=exec(cmd)
 
       # Collect the results, assume the first matching query id in stl_load_errors is the one that failed.
       result = []
