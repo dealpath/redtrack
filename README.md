@@ -96,5 +96,18 @@ SCHEMAS= {
 ```
 
 #### Redshift Type Support
+
+Since Redtrack does asynchronous loading of events, the events are filtered before they are written to the broker in order to avoid COPY errors and to provide direct feedback to the caller of the ```write``` function
+
 ```varchar(n)``` Supported. Current behavior is to truncate any strings that exceed the provided length<br/>
-```
+```char``` Supported. <br/>
+```smallint``` Supported. <br/>
+```bigint``` Supported. <br/>
+```timestamp``` Partially Supported. Not all time formats are supported. Timeformat for Redshift is very restrictive (simply checking for a valid Ruby time is not sufficient) and thus this is done via string matching. [Documentation](http://docs.aws.amazon.com/redshift/latest/dg/r_DATEFORMAT_and_TIMEFORMAT_strings.html)<br/>
+```decimal``` Supported. Checks that the value is a numeric, eg, converts to float.
+
+Redtrack type filtering is done here and contributions to filtering logic are welcome: 
+
+# Documentation / Further reading
+
+Redshift supports a handful of types. [Redshift Types](http://docs.aws.amazon.com/redshift/latest/dg/c_Supported_data_types.html)
