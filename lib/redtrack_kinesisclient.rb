@@ -1,6 +1,8 @@
-# The RedshiftKinesisStream provides an application interface to aws kinesis for redshift data
+# The KinesisClient provides an application interface to aws kinesis as a data broker
 #
 # Copyright (c) 2014 RedHotLabs, Inc.
+# Licensed under the MIT License
+
 module RedTrack
   class KinesisClient
 

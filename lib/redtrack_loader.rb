@@ -2,6 +2,8 @@
 # as to avoid duplication.
 #
 # Copyright (c) 2014 RedHotLabs, Inc.
+# Licensed under The MIT License
+
 require 'tempfile'
 
 module RedTrack
@@ -102,8 +104,11 @@ module RedTrack
       # Local file to store data
       file = Tempfile.new("#{stream_name}.#{shard_description[:shard_id]}.#{@load_start_time.to_i}")
 
+      # Get last shard load
+      last_shard_load = get_last_kinesis_shard_load(redshift_table,stream_name,shard_description)
+
       # Read from broker into a file locally - if nothing read
-      broker_read_result = read_broker_shard_after_last_load_into_file(file,redshift_table,stream_name,shard_description)
+      broker_read_result = read_broker_shard_after_last_load_into_file(file,stream_name,shard_description,last_shard_load)
       loader_profile("Read broker shard complete (#{broker_read_result[:records]} events read)")
 
       # check to see if we didn't read anything from broker
@@ -114,6 +119,7 @@ module RedTrack
           :file_name => file.path,
           :broker_read_result => broker_read_result
         }
+        file.close
         raise RedTrack::LoaderException.new(information), 'No events read from Broker'
       end
 
@@ -136,7 +142,7 @@ module RedTrack
 
       # Load the file into redshift
       load_result = load_kinesis_shard_into_redshift(upload_result[:s3_url],redshift_table,stream_name,shard_description,
-                                broker_read_result[:starting_sequence_number],broker_read_result[:ending_sequence_number])
+               broker_read_result[:starting_sequence_number],broker_read_result[:ending_sequence_number],last_shard_load)
       loader_profile("Load kinesis shard into Redshift complete (#{load_result[:records]} events)")
       if(load_result[:success] == false)
         information = {
@@ -159,14 +165,13 @@ module RedTrack
     # Read the not-yet-loaded events from the data broker into a file
     #
     # @param [File] file The file handle to write the broker data into
-    # @param [String] redshift_table The red shift table which we are loading, determine last loaded event
     # @param [String] stream_name The name of the stream to read events from
     # @param [Hash] shard_description The shard to read
+    # @param [Hash] last_shard_load The last load for this shard
     # @return [Hash] Returns a hash included :success (whether the stream exists and was read) and :records (number of events loaded)
-    def read_broker_shard_after_last_load_into_file(file,redshift_table,stream_name,shard_description)
+    def read_broker_shard_after_last_load_into_file(file,stream_name,shard_description,last_shard_load)
 
-      # Get the last loaded sequence number
-      last_shard_load = get_last_kinesis_shard_load(redshift_table,stream_name,shard_description)
+      # Start the read from the last loaded sequence number
       if last_shard_load != nil
         starting_sequence_number = last_shard_load['ending_sequence_number']
       else
@@ -177,7 +182,9 @@ module RedTrack
       shard_iterator = @broker.get_shard_iterator_from_sequence_number(stream_name, shard_description, starting_sequence_number)
 
       # Read records after shard_iterator into file
-      return @broker.stream_read_from_shard_iterator_into_file(shard_iterator, file)
+      result =  @broker.stream_read_from_shard_iterator_into_file(shard_iterator, file)
+      result[:last_shard_load] = last_shard_load
+      return result
     end
 
     # Uploads file to s3
@@ -275,83 +282,87 @@ module RedTrack
     # @param [Hash] shard_description Result from describe stream
     # @param [Integer] starting_sequence_number The first sequence number to load
     # @param [Integer] ending_sequence_number The last sequence number to load
-    def load_kinesis_shard_into_redshift(s3_url,redshift_table,stream_name,shard_description,starting_sequence_number,ending_sequence_number)
+    # @param [String] last_shard_load Last load ending sequence number used for determine where to start reading broker
+    def load_kinesis_shard_into_redshift(s3_url,redshift_table,stream_name,shard_description,starting_sequence_number,ending_sequence_number,last_shard_load)
 
       shard_id = shard_description[:shard_id]
 
-      exec('BEGIN')
+      begin
 
-      # Get all loads in the last week for this shard. Do range comparison in ruby since Kinesis sequence numbers are 56 digits,
-      # Redshift cannot handle > 38 digits, and ruby can handle arbitrary large numerical numbers.
-      # http://docs.aws.amazon.com/redshift/latest/dg/r_Numeric_types201.html
-      # http://patshaughnessy.net/2014/1/9/how-big-is-a-bignum
-      query = 'SELECT * FROM kinesis_loads ' +
-        "WHERE table_name='#{redshift_table}' AND stream_name='#{stream_name}' AND shard_id='#{shard_id}'"
-      loads_result_set = exec(query)
-      duplicate_load=false
-      duplicated_load = nil
-      loads_result_set.each do |row|
-        load_starting_sequence_number=row['starting_sequence_number'].to_i
-        load_ending_sequence_number=row['ending_sequence_number'].to_i
-        starting_sequence_number=starting_sequence_number.to_i
-        ending_sequence_number=ending_sequence_number.to_i
+        exec('BEGIN')
 
-        # Ranges are loaded with previous ending_sequence_number equaling next loads starting_sequence_number
-        if ( (load_starting_sequence_number < starting_sequence_number && starting_sequence_number < load_ending_sequence_number) ||
-          (load_starting_sequence_number < ending_sequence_number  && ending_sequence_number < load_ending_sequence_number) ||
-          (starting_sequence_number <= load_starting_sequence_number && load_ending_sequence_number <= ending_sequence_number) )
-          duplicate_load=true
-
-          @logger.warn("#{TAG} Overlapping load of #{redshift_table} at #{row['load_timestamp']}: Kinesis stream=#{row['stream_name']}, " +
-            "shard=#{row['shard_id']}. Sequence from #{row['starting_sequence_number']} to #{row['ending_sequence_number']}")
-
-          duplicated_load = row
-
-          break
-        end
-      end
-
-      if duplicate_load == false
-
-        begin
-          # Insert entry for load
-          insert_query = 'INSERT INTO kinesis_loads VALUES ' +
-            "('#{stream_name}','#{shard_id}','#{redshift_table}','#{starting_sequence_number}','#{ending_sequence_number}',getdate())"
-          @redshift_conn.exec(insert_query)
-
-          # Load into database
-          load_file_result=load_file_into_redshift(redshift_table,s3_url)
-
-          # Commit transaction
-          exec('COMMIT')
-
-          # Report back the success and the number of rows loaded into redshift
-          result = {
-            :success => true,
-            :records => load_file_result[:records]
-          }
-        rescue Exception => e
-
-          # Abort transaction
+        # Check that there hasn't been a load since the loader started running
+        new_last_shard_load = get_last_kinesis_shard_load(redshift_table,stream_name,shard_description)
+        if new_last_shard_load['ending_sequence_number'] != last_shard_load['ending_sequence_number']
           exec('ROLLBACK')
 
-          # Get more information about the error
-          load_error = get_last_load_errors(redshift_table,s3_url)
-
           result = {
-            :success => false,
-            :load_error => load_error,
-            :exception => e
+              :success => false,
+              :load_error =>'Race condition detected - A new Kinesis load has occurred since starting the loader',
+              :expected_last_shard_load => last_shard_load,
+              :new_last_shard_load => new_last_shard_load
           }
-        end
-      else
 
-        # Abort the transaction
+          return result
+        end
+
+        # Check that there hasn't been an overlapped loaded sequence.
+        # Since sequence numbers are 56 digits and Redshift handle 38 digits max - store as strings and compare in ruby locally
+        # http://docs.aws.amazon.com/redshift/latest/dg/r_Numeric_types201.html
+        # http://patshaughnessy.net/2014/1/9/how-big-is-a-bignum
+        query = 'SELECT * FROM kinesis_loads ' +
+          "WHERE table_name='#{redshift_table}' AND stream_name='#{stream_name}' AND shard_id='#{shard_id}'"
+        loads_result_set = exec(query)
+        loads_result_set.each do |row|
+          load_starting_sequence_number=row['starting_sequence_number'].to_i
+          load_ending_sequence_number=row['ending_sequence_number'].to_i
+          starting_sequence_number=starting_sequence_number.to_i
+          ending_sequence_number=ending_sequence_number.to_i
+
+          # Ranges are loaded with previous ending_sequence_number equaling next loads starting_sequence_number
+          if ( (load_starting_sequence_number < starting_sequence_number && starting_sequence_number < load_ending_sequence_number) ||
+            (load_starting_sequence_number < ending_sequence_number  && ending_sequence_number < load_ending_sequence_number) ||
+            (starting_sequence_number <= load_starting_sequence_number && load_ending_sequence_number <= ending_sequence_number) )
+
+            @logger.warn("#{TAG} Overlapping load of #{redshift_table} at #{row['load_timestamp']}: Kinesis stream=#{row['stream_name']}, " +
+              "shard=#{row['shard_id']}. Sequence from #{row['starting_sequence_number']} to #{row['ending_sequence_number']}")
+
+            # Abort the transaction
+            exec('ROLLBACK')
+            result = {
+                :success => false,
+                :load_error => 'Duplicated kinesis range',
+                :duplicated_load => duplicated_load
+            }
+
+            return result
+          end
+        end
+
+
+        # Insert entry for load
+        insert_query = 'INSERT INTO kinesis_loads VALUES ' +
+          "('#{stream_name}','#{shard_id}','#{redshift_table}','#{starting_sequence_number}','#{ending_sequence_number}',getdate())"
+        exec(insert_query)
+
+        # Load into database & commit transaction if successful
+        load_file_result=load_file_into_redshift(redshift_table,s3_url)
+        if load_file_result[:success] == true
+          exec('COMMIT')
+        else
+          exec('ROLLBACK')
+        end
+
+        result = load_file_result
+
+      rescue Exception => e
+
+        # Abort transaction
         exec('ROLLBACK')
+
         result = {
-          :success => false,
-          :load_error => 'Duplicated kinesis range',
-          :duplicated_load => duplicated_load
+            :success => false,
+            :exception => e
         }
       end
 
@@ -370,18 +381,26 @@ module RedTrack
         "json 'auto' timeformat 'auto' GZIP MAXERROR #{@options[:max_error]};"
       records=nil
 
-      # Check to see how many rows are loaded (via the INFO)
+      # Set receiver to check how many rows are loaded (via the INFO)
       @redshift_conn.set_notice_receiver {|result|
         matches=/.*,.(\d+).record.*/.match(result.error_message)
         records = matches[1].to_i
       }
 
-      exec(cmd)
-
-      result = {
-        :success => true,
-        :records => records
-      }
+      begin
+        exec(cmd)
+        result = {
+            :success => true,
+            :records => records
+        }
+      rescue Exception => e
+        # Get more information about the error
+        load_error = get_last_load_errors(redshift_table,s3_url)
+        result = {
+            :success => false,
+            :load_error => load_error
+        }
+      end
 
       return result
     end

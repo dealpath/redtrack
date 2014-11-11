@@ -1,3 +1,8 @@
+# The Client provides an application interface for redtrack
+#
+# Copyright (c) 2014 RedHotLabs, Inc.
+# Licensed under the MIT License
+
 module RedTrack
   class Client
 
@@ -6,6 +11,8 @@ module RedTrack
     @broker = nil
     @redshift_conn = nil
     @options = nil
+    @data_types = nil
+    @valid_data_types = nil
 
     @logger = nil
 
@@ -26,6 +33,10 @@ module RedTrack
         @logger.debug("#{TAG} Kinesis disabled. create FileClient")
         @broker = RedTrack::FileClient.new(options)
       end
+
+      # Bind to the interface for checking data types
+      @data_types = RedTrack::DataTypes.new(options)
+      @valid_data_types = @data_types.valid_data_types
 
       AWS.config(options)
 
@@ -110,46 +121,18 @@ module RedTrack
         if(intersection.include?(column_name) == true)
 
           value = data[column_name.to_sym]
-          type = column[:type]
-          type_check_passed = true
-          if type["("] != nil
-            type = type[/(.*)\(.*/,1]
-          end
-          case type
-            when 'varchar', 'char'
-              if value.is_a?(String) == false
-                type_check_passed = false
-              end
-            when 'smallint', 'integer', 'bigint'
-              if is_numeric(value) == false
-                type_check_passed=false
-              end
-            when 'timestamp'
-              if value.is_a?(String) == false || is_redshift_timestamp(value) == false
-                type_check_passed=false
-              end
-            when 'decimal'
-              if value.is_a?(String) == false || is_numeric(value) == false
-                type_check_passed=false
-              end
-            else
-              @logger.warn("#{TAG} Unrecognized type: #{type}")
-              type_check_passed=false
-          end
-          if !type_check_passed
-            raise "#{column_name} passed invalid data. Expected #{type} and got #{value}"
-          end
-        end
-      end
+          column_type = column[:type]
 
-      ## Truncate any data values that are too long for their varchar data type
-      schema[:columns].each do |column_name,column|
-        if(column[:type].include?('varchar') && data[column_name.to_sym] != nil)
-          value = data[column_name.to_sym]
-          num_chars = column[:type][/\((\d*)\)/,1].to_i
-          if(value.length > num_chars)
-            @logger.warn("#{TAG} Data value #{column_name} is too long for column type and will be truncated: '#{value}'")
-            data[column_name.to_sym]=value[0..num_chars-1]
+          if column_type["("] != nil
+            type_name = column_type[/(.*)\(.*/,1]
+          else
+            type_name = column_type
+          end
+
+          if @valid_data_types.include? type_name
+            data[column_name.to_sym] = @data_types.send("check_#{type_name}".to_sym,column_name,value,column_type)
+          else
+            raise "Invalid data type #{type_name}. Valid types [#{@valid_data_types.join(",")}]"
           end
         end
       end

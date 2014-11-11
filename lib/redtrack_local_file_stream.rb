@@ -1,6 +1,7 @@
-# The RedshiftLocalFileStream provides an application interface to file stream for redshift data
+# The FileClient provides an application interface to a file-based broker for redshift data
 #
 # Copyright (c) 2014 RedHotLabs, Inc.
+# Licensed under The MIT License
 
 module RedTrack
   class FileClient
