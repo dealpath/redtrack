@@ -1,6 +1,6 @@
 RedTrack
 ========
-RedTrack provides Infrastructure for tracking and loading events into Redshift using Kinesis as a data broker. For more information on its motivation, design goals, and architecture, please see this blog post: 
+RedTrack provides Infrastructure for tracking and loading events into [AWS Redshift](http://aws.amazon.com/redshift/) using [AWS Kinesis](http://aws.amazon.com/kinesis/) as a data broker. For more information on its motivation, design goals, and architecture, please see this blog post: 
 
 # Installation / Dependencies
 
@@ -61,7 +61,7 @@ You have to make sure the configuration parameter ```redshift_dbname``` has a co
 
 ###### 3) Redshift Tables
 For every table in your schema, you need to make sure there is a Redshift table with the same name; otherwise, loading events will fail. RedTrack client provides a helper method for creating these tables:
-```
+```ruby
 redtrack_client.create_table_from_schema('SOME_TABLE_NAME')
 ```
 
@@ -69,15 +69,15 @@ An example usage can be seen here: [Create table example](https://github.com/lra
 
 ###### 4) Kinesis Streams
 For every table in your schema, you need to make sure there is a Kinesis stream that has a name following the convention ```<redshift_cluster_name>.<redshift_db_name>.<table_name>```. RedTrack provides a helper method for creating these streams:
-```
+```ruby
 redtrack_client.create_kinesis_stream_for_table('SOME_TABLE_NAME')
 ```
 
 An example usage can be seen here: [Create kinesis stream exampe](https://github.com/lrajlich/sinatra_example/blob/master/setup_redtrack_aws_resources.rb#L26)
 
 ###### 5) Tracking Tables
-The final component is that RedTrack keeps some internal state for tracking what events have been loaded. The ```kinesis_loads``` table has to exist in the database that you are loading. Like the above, there is a helper method for creating this table:
-```
+The final component is that RedTrack keeps internal state to track what events have already been loaded. The ```kinesis_loads``` table has to exist in the database that you are loading. Like the above, there is a helper method for creating this table:
+```ruby
 redtrack_client.create_kinesis_loads_table()
 ```
 
@@ -102,7 +102,7 @@ result = redtrack_client.write("SOME_TABLE",data)
 For an application example, see [this example usage](https://github.com/lrajlich/sinatra_example/blob/master/app.rb#L34)
 
 #### Loader
-The loader is run asynchronously to consume events off of the broker and load them into the warehouse. In this case, events are read from Kinesis from the last load point, uploaded to S3, and then copied into Redshift. There is a single function and it takes 2 parameters - a table name, and a stream shard index, that is, the index in the array of shards returned by a [DescribeStream](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStream.html) request
+The loader is run asynchronously to consume events off of the broker and load them into the warehouse. In this case, events are read from Kinesis from the last load point, uploaded to S3, and then copied into Redshift. There is a single function and it takes 2 parameters - a table name, and a stream shard index. The stream shard index corresponds to the index in the array of shards returned by a [DescribeStream](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStream.html) request
 
 A simple example:
 ```ruby
@@ -113,7 +113,7 @@ loader_result = loader.load_redshift_from_broker("SOME_TABLE_NAME",stream_shard_
 For an application example, see [this load_redshift script example](https://github.com/lrajlich/sinatra_example/blob/master/load_redshift.rb)
 
 # Redshift Schema
-One of the features of redtrack is the ability to pass in a schema matching table schema. Redtrack can validate that passed events match the schema, as well, it can generate a SQL statements to create a table matching that schema or create the table directly.
+One of the features of redtrack is the ability to pass in a schema matching table schema. Redtrack can validate that passed events match the schema, as well, it can generate a SQL statements to create a table matching that schema or create the table directly. To get an overview of what the available redshift schema definition is, see [The docs](http://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_TABLE_NEW.html)
 
 In order to pass schema, you pass in a hash like this:
 ```ruby
@@ -124,7 +124,7 @@ SCHEMA = {
         :type => 'varchar(32)',
         :constraint => 'not null'
       },
-      .... (OTHER COLUMNS)
+      ... (OTHER COLUMNS)
     },
     :sortkey => 'SOME_COLUMN_NAME',
     :distkey => 'SOME_COLUMN_NAME'
@@ -159,6 +159,14 @@ Since Redtrack does asynchronous loading of events, the events are filtered befo
 ```decimal``` Supported. Checks that the value is a numeric, eg, converts to float.
 
 Redtrack type filtering is done [here](https://github.com/redhotlabs/redtrack/blob/master/lib/redtrack_datatypes.rb) and contributions to filtering logic are welcome: 
+
+#### Unsopported Redshift schema options
+
+1) Creating Redshift tables with Redshift Column Attributes, [From Docs](http://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_TABLE_NEW.html). This includes the following parameters: DEFAULT, IDENTITY, and ENCODE. DISTKEY and SORTKEY will be created as table attributes, but not as column attributes. You can manually set attributes on the columns.
+
+2) Creating Redshift Tables with table Constraints, [From Docs](http://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_TABLE_NEW.html). This includes UNIQUE, PRIMARY KEY, and FOREIGN_KEY constraints. You can manually set these values on the table schema.
+
+3) Enforcement of Unique column constraints, [From Docs](http://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_TABLE_NEW.html), The RedTrack client will not verify that an event's property is actually unique. What will happen is that the events will fail to load.
 
 # Documentation / Further reading
 
