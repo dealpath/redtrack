@@ -38,7 +38,12 @@ module RedTrack
       @data_types = RedTrack::DataTypes.new(options)
       @valid_data_types = @data_types.valid_data_types
 
-      AWS.config(options)
+      aws_options = {
+          :access_key_id => options[:access_key_id],
+          :secret_access_key => options[:secret_access_key],
+          :region => options[:region]
+      }
+      AWS.config(aws_options)
 
       @options = options
     end
@@ -84,7 +89,6 @@ module RedTrack
     # @return [Boolean] Whether or not the write succeeded
     def write(table,data,partition_key=nil)
 
-      @logger.warn("Enter write #{table}")
       ## Get table schema...
       schema = get_table_schema(table)
 
@@ -130,7 +134,7 @@ module RedTrack
           end
 
           if @valid_data_types.include? type_name
-            data[column_name.to_sym] = @data_types.send("check_#{type_name}".to_sym,column_name,value,column_type)
+            data[column_name.to_sym] = @data_types.send("check_#{type_name}".to_sym,value,column_type,column_name)
           else
             raise "Invalid data type #{type_name}. Valid types [#{@valid_data_types.join(",")}]"
           end

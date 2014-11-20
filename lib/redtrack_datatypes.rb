@@ -25,11 +25,11 @@ module RedTrack
 
     # Check and clean value to ensure it conforms to the redshfit data type
     #
-    # @param [String] column_name The name of the redshift column
     # @param [Object] value the value to set for the column
     # @param [String] type_definition the the type defined by the schema
+    # @param [String] column_name The name of the redshift column
     # @return [Object] The value if it is valid
-    def check_smallint(column_name,value,type_definition)
+    def check_smallint(value,type_definition=nil,column_name=nil)
       if value.is_a?(Integer) == false
         raise_exception(column_name,value,type_definition)
       end
@@ -39,11 +39,11 @@ module RedTrack
 
     # Check and clean value to ensure it conforms to the redshfit data type
     #
-    # @param [String] column_name The name of the redshift column
     # @param [Object] value the value to set for the column
     # @param [String] type_definition the the type defined by the schema
+    # @param [String] column_name The name of the redshift column
     # @return [Object] The value if it is valid
-    def check_integer(column_name,value,type_definition)
+    def check_integer(value,type_definition=nil,column_name=nil)
       if value.is_a?(Integer) == false
         raise_exception(column_name,value,type_definition)
       end
@@ -53,11 +53,11 @@ module RedTrack
 
     # Check and clean value to ensure it conforms to the redshfit data type
     #
-    # @param [String] column_name The name of the redshift column
     # @param [Object] value the value to set for the column
     # @param [String] type_definition the the type defined by the schema
+    # @param [String] column_name The name of the redshift column
     # @return [Object] The value if it is valid
-    def check_bigint(column_name,value,type_definition)
+    def check_bigint(value,type_definition=nil,column_name=nil)
       if value.is_a?(Integer) == false
         raise_exception(column_name,value,type_definition)
       end
@@ -67,11 +67,11 @@ module RedTrack
 
     # Check and clean value to ensure it conforms to the redshfit data type
     #
-    # @param [String] column_name The name of the redshift column
     # @param [Object] value the value to set for the column
     # @param [String] type_definition the the type defined by the schema
+    # @param [String] column_name The name of the redshift column
     # @return [Object] The value if it is valid
-    def check_decimal(column_name,value,type_definition)
+    def check_decimal(value,type_definition=nil,column_name=nil)
       if value.is_a?(String) == false || is_numeric(value) == false
         raise_exception(column_name,value,type_definition)
         #raise ""
@@ -82,11 +82,11 @@ module RedTrack
 
     # Check and clean value to ensure it conforms to the redshfit data type
     #
-    # @param [String] column_name The name of the redshift column
     # @param [Object] value the value to set for the column
     # @param [String] type_definition the the type defined by the schema
+    # @param [String] column_name The name of the redshift column
     # @return [Object] The value if it is valid
-    def check_real(column_name,value,type_definition)
+    def check_real(value,type_definition=nil,column_name=nil)
       if is_numeric(value) == false
         raise_exception(column_name,value,type_definition)
       end
@@ -96,11 +96,11 @@ module RedTrack
 
     # Check and clean value to ensure it conforms to the redshfit data type
     #
-    # @param [String] column_name The name of the redshift column
     # @param [Object] value the value to set for the column
     # @param [String] type_definition the the type defined by the schema
+    # @param [String] column_name The name of the redshift column
     # @return [Object] The value if it is valid - truncated if it is too long
-    def check_char(column_name,value,type_definition)
+    def check_char(value,type_definition=nil,column_name=nil)
       if value.is_a?(String) == false
         raise_exception(column_name,value,type_definition)
       end
@@ -111,11 +111,11 @@ module RedTrack
 
     # Check and clean value to ensure it conforms to the redshfit data type
     #
-    # @param [String] column_name The name of the redshift column
     # @param [Object] value the value to set for the column
     # @param [String] type_definition the the type defined by the schema
+    # @param [String] column_name The name of the redshift column
     # @return [Object] The value if it is valid - truncated if too long
-    def check_varchar(column_name,value,type_definition)
+    def check_varchar(value,type_definition=nil,column_name=nil)
       if value.is_a?(String) == false
         raise_exception(column_name,value,type_definition)
       end
@@ -130,11 +130,11 @@ module RedTrack
 
     # Check and clean value to ensure it conforms to the redshfit data type
     #
-    # @param [String] column_name The name of the redshift column
     # @param [Object] value the value to set for the column
     # @param [String] type_definition the the type defined by the schema
+    # @param [String] column_name The name of the redshift column
     # @return [Object] The value if it is valid
-    def check_timestamp(column_name,value,type_definition)
+    def check_timestamp(value,type_definition=nil,column_name=nil)
       if value.is_a?(String) == false || value[/\A\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d\z/] == nil
         raise_exception(column_name,value,type_definition)
       end
@@ -149,7 +149,7 @@ module RedTrack
     # @param [Object] value the value to set for the column
     # @param [String] type_definition the the type defined by the schema
     def raise_exception(column_name,value,type_definition)
-      raise "Value for column #{column_name}, '#{value.to_s}', does not conform to type '#{type_definition}'"
+      raise "Value for column #{column_name}, #{value.to_s}, does not conform to type '#{type_definition}'"
     end
 
     # Determine whether the typed value is a legit number, (eg, string)
