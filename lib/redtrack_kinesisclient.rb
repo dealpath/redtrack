@@ -41,10 +41,25 @@ module RedTrack
     # Get hash describing the shard from describe_stream
     #
     # @param [String] stream_name The name of the kinesis stream
+    # @return [Hash] Information regarding the stream shards
+    def get_shard_descriptions(stream_name)
+      describe_response = AWS.kinesis.client.describe_stream({:stream_name => stream_name})
+
+      result = nil
+      if describe_response != nil && describe_response[:stream_description] != nil
+        result = describe_response[:stream_description][:shards]
+      end
+      return result
+    end
+
+    # Get hash describing the shard from describe_stream
+    #
+    # @param [String] stream_name The name of the kinesis stream
     # @param [Integer] stream_shard_index The index of the shard in the array of shards
     # @return [Hash] Information regarding the stream shard, from AWS kinesis
     def get_shard_description(stream_name,stream_shard_index)
       describe_response = AWS.kinesis.client.describe_stream({:stream_name => stream_name})
+
       if describe_response != nil && describe_response[:stream_description] != nil
         result = describe_response[:stream_description][:shards][stream_shard_index]
         result[:success] = true
@@ -90,7 +105,7 @@ module RedTrack
         get_shard_iterator_options[:shard_iterator_type] = 'AFTER_SEQUENCE_NUMBER'
         get_shard_iterator_options[:starting_sequence_number] = starting_sequence_number
       else
-        @logger.warn('No checkpoint sequence number, reading from shard trim_horizon')
+        @logger.warn("Shard '#{shard_description[:shard_id]}' has no starting sequence number, use TRIM_HORIZON shard iterator")
         get_shard_iterator_options[:shard_iterator_type] = 'TRIM_HORIZON'
       end
 
@@ -102,10 +117,10 @@ module RedTrack
     # Read from kinesis shard into a file
     #
     # @param [String] shard_iterator  The shard iterator to start reading from - result of get_shard_iterator
-    # @param [String] file The file read into.
+    # @param [String] files Array of files to write data into
     # @param [Hash] options Optional. Can specify :max_records, :max_requests
     # @return [Hash] Hash of # of records read and the sequence number of the last read record, number of records, and shard iterator
-    def stream_read_from_shard_iterator_into_file(shard_iterator, file, options={})
+    def stream_read_from_shard_iterator_into_files(shard_iterator, files, options={})
 
       max_records = options[:max_records] || DEFAULT_MAX_RECORDS
       max_requests = options[:max_requests] || DEFAULT_MAX_REQUESTS
@@ -113,6 +128,7 @@ module RedTrack
       start_sequence_number=nil
       end_sequence_number=nil
       records = 0
+      num_files = files.length
 
       for i in 0..max_requests
 
@@ -126,7 +142,8 @@ module RedTrack
             data_payload = JSON.parse(record[:data])
             data = data_payload['data']
 
-            file.puts data + "\n"
+            # rotate which file we write into
+            files[records % num_files].puts data + "\n"
 
             #  Seqeunce numbers
             if (start_sequence_number == nil)
@@ -159,8 +176,7 @@ module RedTrack
         starting_sequence_number: start_sequence_number.to_s,
         ending_sequence_number: end_sequence_number.to_s,
         next_shard_iterator: shard_iterator,
-        records: records,
-        success: true
+        records: records
       }
       return result
     end

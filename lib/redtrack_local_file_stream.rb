@@ -13,6 +13,12 @@ module RedTrack
     # @param [Hash] options Nothing expected
     # @return [Boolean] Success
     def initialize(options)
+
+      #check if log/ exists and create it if it doesn't
+      if File.directory?("log") == false
+        Dir.mkdir "log"
+      end
+
       @options = options
     end
 
@@ -52,12 +58,10 @@ module RedTrack
     # Fake shard description for file, use hostname for shard_name
     #
     # @param [String] stream_name The name of the kinesis stream
-    # @param [Integer] stream_shard_index The index of the shard in the array of shards
-    def get_shard_description(stream_name,stream_shard_index)
-      return {
-          :success => true,
-          :shard_id => system('hostname')
-      }
+    def get_shard_descriptions(stream_name)
+      return [{
+          :shard_id => `hostname`.tr("\n","")
+      }]
     end
 
     # Get the shard iterator given a checkpointed sequence number. If no checkpoint, start to read from start of shard
@@ -73,35 +77,39 @@ module RedTrack
     # Ream from kinesis shard into a file
     #
     # @param [String] shard_iterator  The shard iterator to start reading from - result of get_shard_iterator- http://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetShardIterator.html
-    # @param [String] file_name The filename to read into.
+    # @param [String] files Array of files to read into
     # @param [Hash] options Optional. Can specify :max_records, :max_requests, :max_consecutive_requests_without_data, :backoff_no_data
     # @return [Hash] Hash of # of records read and the sequence number of the last read record, number of records, and shard iterator
-    def stream_read_from_shard_iterator_into_file(shard_iterator, file, options={})
+    def stream_read_from_shard_iterator_into_files(shard_iterator, files, options={})
 
       stream_file_name = shard_iterator
 
+      records = 0
+      num_files = files.length
+
       fake_sequence_number = Time.now.to_i
 
-      file.close
-
       if File.exist?(stream_file_name)
-        FileUtils.mv(stream_file_name, file.path)
+        FileUtils.mv(stream_file_name, "#{stream_file_name}.#{fake_sequence_number}")
+
+        stream_file = File.open("#{stream_file_name}.#{fake_sequence_number}",'r')
+        while(line = stream_file.gets) != nil
+          files[records % num_files].puts line + "\n"
+          records += 1
+        end
 
         result = {
           :starting_sequence_number => fake_sequence_number,
           :ending_sequence_number => fake_sequence_number,
-          :records => %x(wc -l "#{file.path}").to_i,
-          :success => true
+          :records => records
         }
       else
         result = {
-          :starting_sequence_number => fake_sequence_number,
-          :ending_sequence_number => fake_sequence_number,
           :records => 0,
-          :sucess => false
+          :starting_sequence_number => '',
+          :ending_sequence_number => ''
         }
       end
-
       return result
     end
 
