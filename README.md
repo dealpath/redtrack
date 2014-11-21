@@ -36,12 +36,12 @@ redtrack_client = RedTrack::Client.new(redtrack_options)
 ##### Constructor options
 ```:access_key_id``` Required. String. Passed to the [aws ruby sdk](https://github.com/aws/aws-sdk-ruby)<br/>
 ```:secret_access_key``` Required. String. Passed to the [aws ruby sdk](https://github.com/aws/aws-sdk-ruby)<br/>
+```:region``` Required. String. AWS region. Passed to [aws ruby sdk](https://github.com/aws/aws-sdk-ruby)<br/>
 ```:s3_bucket``` Required. String. Name of the bucket to store file uploads. Must be in same region as Redshift cluster.<br/>
-```:region``` Required. String. AWS region. Passed to aws-sdk.<br/>
 ```:redshift_cluster_name``` Required. String. Fill in Name of the redshift cluster from redshift cluster configuration<br/>
-```:redshift_host``` Required. String. This is the Endpoint under Cluster Database Properties on redshift cluster configuration<br/>
-```:redshift_port``` Required. String. Port under Cluster Database Properties on redshift cluster configuration. Default is 5439<br/>
-```:redshift_dbname``` Required. String. Database Name under Cluster Database Properties on redshift cluster configuration<br/>
+```:redshift_host``` Required. String. Host to connect to. By default, this is listed as the endpoint under Cluster Database Properties on redshift cluster configuration<br/>
+```:redshift_port``` Required. String. Port that Redshift is running on. By default, port is listed under Cluster Database Properties on redshift cluster configuration (and typically is 5439)<br/>
+```:redshift_dbname``` Required. String. Database name to connect to. By default, use database Name under Cluster Database Properties on redshift cluster configuration<br/>
 ```:redshift_user``` Required. String. Master Username under Cluster Database Properties on redshift cluster configuration<br/>
 ```:redshift_password``` Required. String. Password used for the above user<br/>
 ```:redshift_schema``` Required. Hash. Schema definition for redshift. For more information, see [Redshift Schema section](https://github.com/redhotlabs/redtrack#redshift-schema)<br/>
