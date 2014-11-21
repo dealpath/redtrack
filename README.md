@@ -23,7 +23,7 @@ A full application example showing usage here: https://github.com/lrajlich/sinat
 Redtrack is used through a client object. In order to get started, you need to configure & create a redtrack client, ensure you have the proper AWS resources provisioned & configured, and then you can call the APIs.
 
 ### Configure & Create RedTrack client
-To construct a client object, pass a hash of options, [documented in next section](https://github.com/redhotlabs/redtrack/blob/master/README.md#constructor-options),  to its constructor:
+To construct a client object, pass a hash of options to its constructor:
 ```ruby
 redtrack_options = {
   :PARAMETER_NAME => PARAMETER_VALUE
@@ -54,7 +54,7 @@ For an example / template configuration, see [example configuration](https://git
 RedTrack depends on a number of AWS resources to be provisioned and configured. These are:
 
 ###### 1) Redshift cluster 
-This has to be done manually via the [Redshift AWS console](https://console.aws.amazon.com/redshift/home)
+This is done manually via the [Redshift AWS console](https://console.aws.amazon.com/redshift/home)
 
 ###### 2) Redshift Database
 You have to make sure the configuration parameter ```redshift_dbname``` has a corresponding database in redshift, otherwise loading events will fail. By default, your Redshift Cluster will have a database when you create the cluster. You can create additional databases using ```psql``` and using the ```CREATE DATABASE``` command.
@@ -102,20 +102,19 @@ result = redtrack_client.write("SOME_TABLE",data)
 For an application example, see [this example usage](https://github.com/lrajlich/sinatra_example/blob/master/app.rb#L34)
 
 #### Loader
-The loader is run asynchronously to consume events off of the broker and load them into the warehouse. In this case, events are read from Kinesis from the last load point, uploaded to S3, and then copied into Redshift. There is a single function and it takes 2 parameters - a table name, and a stream shard index. The stream shard index corresponds to the index in the array of shards returned by a [DescribeStream](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStream.html) request
+The loader is run asynchronously to consume events off of the broker and load them into the warehouse. In this case, events are read from Kinesis from the last load point, uploaded to S3, and then copied into Redshift. There is a single function and takes the table name. The loader reads all shards returned by a  [DescribeStream](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStream.html) request and then loads them into Redshift.
 
 A simple example:
 ```ruby
 loader = redtrack_client.new_loader()
-stream_shard_index=0
-loader_result = loader.load_redshift_from_broker("SOME_TABLE_NAME",stream_shard_index)
+loader_result = loader.load_redshift_from_broker("SOME_TABLE_NAME")
 ```
 For an application example, see [this load_redshift script example](https://github.com/lrajlich/sinatra_example/blob/master/load_redshift.rb)
 
 # Redshift Schema
-One of the features of redtrack is the ability to pass in a schema matching table schema. Redtrack can validate that passed events match the schema, as well, it can generate a SQL statements to create a table matching that schema or create the table directly. To get an overview of what the available redshift schema definition is, see [The docs](http://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_TABLE_NEW.html)
+One of the features of redtrack is the ability to pass in a schema matching table schema. Redtrack can validate that passed events match the schema, as well, it can generate &amp; execute SQL statements to create a table matches your schema. To get an overview of what the available redshift schema definition is, see [The docs](http://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_TABLE_NEW.html)
 
-In order to pass schema, you pass in a hash like this:
+In order to setup schema, Redtrack expects a hash that looks like this:
 ```ruby
 SCHEMA = {
   :SOME_TABLE_NAME => {
@@ -133,19 +132,17 @@ SCHEMA = {
 }
 ```
 
-A simple example looks like this:
-```ruby
-SCHEMAS= {
-    :test_events => {
-        :columns => {
-            :client_ip =>     { :type => 'varchar(32)', :constraint => 'not null'},
-            :timestamp =>     { :type => 'integer', :constraint => 'not null'},
-            :message =>       { :type => 'varchar(128)' }
-        },
-        :sortkey => 'timestamp'
-    }
-}
-```
+For an application example, see [this example](https://github.com/lrajlich/sinatra_example/blob/master/configuration.rb#L4)
+
+#### Support Redshift Schema Options
+
+1) Data type. ```type```. The data type for the column. See [Redshift Datatypes](http://docs.aws.amazon.com/redshift/latest/dg/c_Supported_data_types.html) for more details.
+
+2) Column constraints. The ```constraint``` value. Examples of column constraints are NOT NULL, NULL, UNIQUE, and PRIMARY KEY. See [Create table documentation](http://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_TABLE_NEW.html) for more information. Additionally, Redshift does not enforce UNIQUE or PRIMARY KEY constraints [http://docs.aws.amazon.com/redshift/latest/dg/t_Defining_constraints.html](Documentation). 
+
+3) Table sort key. The table's ```sortkey``` determines how data is laid out on disk in redshift. In general, you want to have ```sortkey``` that matches how data is loaded (in RedTrack's case, a timestamp column) and columns often used in WHERE clauses.
+
+4) Table dist key. The table's ```distkey``` determines how data is distributed amongst the nodes in your cluster. By default, Redshift distributes data in round robin mechanism. In general, you want to pick a distkey that allows Redshift to execute your queries across all nodes in your cluster evenly, so, for example, you do not want columns used in WHERE clauses.
 
 #### Redshift Type Support
 
@@ -158,15 +155,15 @@ Since Redtrack does asynchronous loading of events, the events are filtered befo
 ```timestamp``` Partially Supported. Not all time formats are supported. Timeformat for Redshift is very restrictive (simply checking for a valid Ruby time is not sufficient) and thus this is done via string matching. [Documentation](http://docs.aws.amazon.com/redshift/latest/dg/r_DATEFORMAT_and_TIMEFORMAT_strings.html)<br/>
 ```decimal``` Supported. Checks that the value is a numeric, eg, converts to float.
 
-Redtrack type filtering is done [here](https://github.com/redhotlabs/redtrack/blob/master/lib/redtrack_datatypes.rb) and contributions to filtering logic are welcome: 
+Redtrack type filtering is done [here](https://github.com/redhotlabs/redtrack/blob/master/lib/redtrack_datatypes.rb) and contributions to filtering logic are welcome.
 
-#### Unsopported Redshift schema options
+#### Unsupported Redshift schema options
 
-1) Creating Redshift tables with Redshift Column Attributes, [From Docs](http://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_TABLE_NEW.html). This includes the following parameters: DEFAULT, IDENTITY, and ENCODE. DISTKEY and SORTKEY will be created as table attributes, but not as column attributes. You can manually set attributes on the columns.
+1) Creating Redshift tables with Redshift Column Attributes, [From Docs](http://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_TABLE_NEW.html). This includes the following parameters: DEFAULT, IDENTITY, and ENCODE. DISTKEY and SORTKEY can be created as table attributes, but not as column attributes. You can manually set attributes on the columns outside of Redtrack.
 
-2) Creating Redshift Tables with table Constraints, [From Docs](http://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_TABLE_NEW.html). This includes UNIQUE, PRIMARY KEY, and FOREIGN_KEY constraints. You can manually set these values on the table schema.
+2) Creating Redshift Tables with table Constraints, [From Docs](http://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_TABLE_NEW.html). This includes UNIQUE, PRIMARY KEY, and FOREIGN_KEY constraints. You can manually set these values on the table schema outside of Redtrack.
 
-3) Enforcement of Unique column constraints, [From Docs](http://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_TABLE_NEW.html), The RedTrack client will not verify that an event's property is actually unique. What will happen is that the events will fail to load.
+3) Enforcement of Unique column constraints, [From Docs](http://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_TABLE_NEW.html), The RedTrack client will not verify that an event's property is actually unique. Additionally, Redshift does not enforce uniqueness either [Redshift documentation](http://docs.aws.amazon.com/redshift/latest/dg/t_Defining_constraints.html).
 
 # Documentation / Further reading
 
