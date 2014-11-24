@@ -4,9 +4,15 @@ RedTrack provides Infrastructure for tracking and loading events into [AWS Redsh
 
 # Installation / Dependencies
 
-Add to Gemfile
+If using bundler, add to Gemfile  
 ```
 gem 'redtrack', git: 'git://github.com/redhotlabs/redtrack.git'
+```
+
+If not using bundler, you have to install specific install gem first, then install from git url
+```
+gem install specific_install
+gem specific_install https://github.com/redhotlabs/redtrack.git
 ```
 
 Once installed, the library can be used by requiring it
