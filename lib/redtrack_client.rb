@@ -127,14 +127,15 @@ module RedTrack
           value = data[column_name.to_sym]
           column_type = column[:type]
 
-          if column_type["("] != nil
+          if column_type['('] != nil
             type_name = column_type[/(.*)\(.*/,1]
           else
             type_name = column_type
           end
 
           if @valid_data_types.include? type_name
-            data[column_name.to_sym] = @data_types.send("check_#{type_name}".to_sym,value,column_type,column_name)
+            type_name_check_function = "check_#{type_name..gsub(' ','_')}".to_sym
+            data[column_name.to_sym] = @data_types.send(type_name_check_function,value,column_type,column_name)
           else
             raise "Invalid data type #{type_name}. Valid types [#{@valid_data_types.join(",")}]"
           end
@@ -177,7 +178,7 @@ module RedTrack
     #
     # @param [String] table The name of the table
     # @param [Boolean] exec Whether to execute the statement
-    # @param [Hash] table_schema The table schema to use - if not provided, get from passed schema
+    # @param [Hash] schema The table schema to use - if not provided, get from passed schema
     # @return [String] Returns the create table string
     def create_table_from_schema(table,exec=true,schema=nil)
 
