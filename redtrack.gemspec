@@ -11,6 +11,7 @@ Gem::Specification.new do |s|
   s.homepage      = 'https://github.com/redhotlabs/redtrack'
   s.license       = 'MIT'
 
-  s.add_dependency 'aws-sdk'
-  s.add_dependency 'pg'
+  s.add_dependency 'aws-sdk','>= 1.51.0'
+  s.add_dependency 'pg','>= 0.17.1'
+  s.add_development_dependency 'rspec','>= 3.1.0'
 end
