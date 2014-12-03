@@ -13,5 +13,7 @@ Gem::Specification.new do |s|
 
   s.add_dependency 'aws-sdk','>= 1.51.0'
   s.add_dependency 'pg','>= 0.17.1'
-  s.add_development_dependency 'rspec','>= 3.1.0'
+  s.add_development_dependency 'rspec','2.14'
+  s.add_development_dependency 'rake'
+  s.add_development_dependency 'coveralls'
 end
