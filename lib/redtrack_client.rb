@@ -205,11 +205,16 @@ module RedTrack
         query += "\n"
       end
       query += ")"
-      if schema[:sortkey] != nil
-        query += "\nsortkey(" + schema[:sortkey] + ");\n"
-      else
-        query += ";\n"
+
+      # Add table attributes
+      if schema[:distkey] != nil
+        query += "\ndistkey(#{schema[:distkey]})"
       end
+      if schema[:sortkey] != nil
+        query += "\nsortkey(#{schema[:sortkey]})"
+      end
+
+      query += ";\n"
 
       if exec
         conn = new_redshift_connection()
@@ -221,8 +226,11 @@ module RedTrack
       return result
     end
 
+    # Create kinesis loads table
+    #
+    # @param[Boolean] exec Whether to exec the query
     # @return [String] Executes query against redshift and returns the result
-    def create_kinesis_loads_table
+    def create_kinesis_loads_table(exec=true)
       schema= {
         :columns => {
           :stream_name =>                   { :type => 'varchar(64)' },
@@ -235,7 +243,7 @@ module RedTrack
         :sortkey => 'load_timestamp'
       }
 
-      return create_table_from_schema('kinesis_loads',true,schema)
+      return create_table_from_schema('kinesis_loads',exec,schema)
     end
 
     # Create a kinesis stream for the table - use configuration
@@ -265,24 +273,5 @@ module RedTrack
       return merged_options
     end
 
-    # Determine whether the typed value is a legit number, (eg, string)
-    #
-    # @param [Numeric] value The value to check as valid numeric
-    # @return [Boolean] Whether or not the value is a numeric
-    def is_numeric(value)
-      Float(value) != nil rescue false
-    end
-
-    # Determine whether the typed value is a timestamp as defined by redshift. This is more restrictive than ruby parsing b/c of redshift
-    # See: http://docs.aws.amazon.com/redshift/latest/dg/r_DATEFORMAT_and_TIMEFORMAT_strings.html
-    #
-    # @param [String] value The value to check as a valid timestamp: "YYYY-MM-DD HH:mm:ss" is only accepted format
-    # @return [Boolean] Whether or not the value is a timestamp as accepted by redshift
-    def is_redshift_timestamp(value)
-      if value.is_a?(String) && value[/\A\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d\z/] != nil
-        return true
-      end
-      return false
-    end
   end
 end
