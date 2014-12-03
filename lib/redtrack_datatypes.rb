@@ -22,7 +22,7 @@ module RedTrack
 
     # @return [Array] Return an array of valid data types
     def valid_data_types
-      result = ['smallint' 'integer' 'bigint' 'decimal' 'real' 'double precision' 'boolean' 'char' 'varchar' 'date' 'timestamp']
+      result = ['smallint', 'integer', 'bigint', 'decimal', 'real', 'double precision', 'boolean', 'char', 'varchar', 'date', 'timestamp']
       return result
     end
 

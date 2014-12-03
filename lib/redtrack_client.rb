@@ -133,8 +133,10 @@ module RedTrack
             type_name = column_type
           end
 
-          if @valid_data_types.include? type_name
-            type_name_check_function = "check_#{type_name..gsub(' ','_')}".to_sym
+          type_name_downcased = type_name.downcase
+
+          if @valid_data_types.include? type_name_downcased
+            type_name_check_function = "check_#{type_name_downcased.gsub(' ','_')}".to_sym
             data[column_name.to_sym] = @data_types.send(type_name_check_function,value,column_type,column_name)
           else
             raise "Invalid data type #{type_name}. Valid types [#{@valid_data_types.join(",")}]"
@@ -282,6 +284,5 @@ module RedTrack
       end
       return false
     end
-
   end
 end
