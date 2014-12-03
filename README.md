@@ -2,19 +2,21 @@ RedTrack
 ========
 RedTrack provides Infrastructure for tracking and loading events into [AWS Redshift](http://aws.amazon.com/redshift/) using [AWS Kinesis](http://aws.amazon.com/kinesis/) as a data broker. For more information on its motivation, design goals, and architecture, please see this blog post: . A full application example is here: [Sinatra Example](https://github.com/lrajlich/sinatra_example).
 
+#https://rubygems.org/gems/redtrack
+[![Gem Version](http://img.shields.io/gem/v/redtrack.svg)](https://rubygems.org/gems/redtrack)
 [![Build Status](https://secure.travis-ci.org/redhotlabs/redtrack.png)](http://travis-ci.org/redhotlabs/redtrack)
+[![Coverage Status](https://img.shields.io/coveralls/redhotlabs/redtrack.svg)](https://coveralls.io/r/redhotlabs/redtrack)
 
 # Installation / Dependencies
 
-If using bundler, add to Gemfile  
+If using bundler, add this line to Gemfile  
 ```
-gem 'redtrack', git: 'git://github.com/redhotlabs/redtrack.git'
+gem 'redtrack'
 ```
 
 If not using bundler, you have to install specific install gem first, then install from git url
 ```
-gem install specific_install
-gem specific_install https://github.com/redhotlabs/redtrack.git
+gem install redtrack
 ```
 
 Once installed, the library can be used by requiring it
