@@ -8,6 +8,7 @@ module RedTrack
   class DataTypes
 
     @logger = nil
+    @options = nil
 
     TAG = 'RedTrack::DataTypes'
 
@@ -18,6 +19,8 @@ module RedTrack
       else
         @logger = Logger.new(STDOUT)
       end
+
+      @options = options
     end
 
     # @return [Array] Return an array of valid data types
@@ -154,21 +157,41 @@ module RedTrack
       return value
     end
 
-    def check_date(column_name,value,type_definition)
+    # Check and clean value to ensure it conforms to the redshift data type
+    #  http://docs.aws.amazon.com/redshift/latest/dg/r_DATEFORMAT_and_TIMEFORMAT_strings.html
+    #
+    # @param [Object] value the value to set for the column
+    # @param [String] type_definition the the type defined by the schema
+    # @param [String] column_name The name of the redshift column
+    # @return [Object] The value if it is valid - truncated if too long
+    def check_date(value,type_definition=nil,column_name=nil)
+      if value.is_a?(Date) == false
+        raise_exception(column_name,value,type_definition,"Date")
+      end
 
+      # Return the value in default date format for redshift: (YYYY-MM-DD)
+      return value.strftime("%Y-%m-%d")
     end
 
     # Check and clean value to ensure it conforms to the redshift data type
+    #  http://docs.aws.amazon.com/redshift/latest/dg/r_DATEFORMAT_and_TIMEFORMAT_strings.html
     #
     # @param [Object] value the value to set for the column
     # @param [String] type_definition the the type defined by the schema
     # @param [String] column_name The name of the redshift column
     # @return [Object] The value if it is valid
     def check_timestamp(value,type_definition=nil,column_name=nil)
-      if value.is_a?(String) == false || value[/\A\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d\z/] == nil
-        raise_exception(column_name,value,type_definition)
+      if value.is_a?(Time) == false
+        raise_exception(column_name,value,type_definition,"Time")
       end
-      return value
+
+      # Check to see if UTC
+      if @options[:convert_timestamps_utc] == true
+        value = value.utc
+      end
+
+      # Return value in default timestamp format for redshift: (YYYY-MM-DD HH:MI:SS)
+      return value.strftime("%Y-%m-%d %H:%M:%S")
     end
 
     private
