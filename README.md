@@ -167,11 +167,6 @@ Since Redtrack does asynchronous loading of events, the events are filtered befo
 ```date``` Redtrack expects [Ruby Date](http://ruby-doc.org/stdlib-2.1.5/libdoc/date/rdoc/Date.html). ([redshift datetime types documentation](http://docs.aws.amazon.com/redshift/latest/dg/r_Datetime_types.html))<br/>
 ```timestamp``` Redtrack expects [Ruby Time](http://www.ruby-doc.org/core-2.1.5/Time.html). Redshift does not store timezones and Redtrack does not do any timezone conversion, so consider sending data using UTC timezone, otherwise you'll have a possibility of timezone mismatches in the event that servers have inconsistent timezone settings. ([redshift datetime types documentation](http://docs.aws.amazon.com/redshift/latest/dg/r_Datetime_types.html))
 
-
-Timeformat for Redshift is very restrictive (simply checking for a valid Ruby time is not sufficient) and thus this is done via string matching. [Documentation](http://docs.aws.amazon.com/redshift/latest/dg/r_DATEFORMAT_and_TIMEFORMAT_strings.html)<br/>
-
-Redtrack type filtering is done [here](https://github.com/redhotlabs/redtrack/blob/master/lib/redtrack_datatypes.rb) and contributions to filtering logic are welcome.
-
 #### Unsupported Redshift schema options
 
 1) Creating Redshift tables with Redshift Column Attributes, [From Docs](http://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_TABLE_NEW.html). This includes the following parameters: DEFAULT, IDENTITY, and ENCODE. DISTKEY and SORTKEY can be created as table attributes, but not as column attributes. You can manually set attributes on the columns outside of Redtrack.
