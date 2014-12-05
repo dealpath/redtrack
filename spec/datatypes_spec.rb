@@ -19,6 +19,14 @@ describe RedTrack::DataTypes do
     data
   }
 
+  let(:valid_timestamp_with_tz) {
+    Time.new(2014,12,05, 13,30,0, "+09:00")
+  }
+
+  let(:valid_date) {
+    Date.new(2014,12,05)
+  }
+
   context '[Public Methods]' do
     context 'check_smallint()' do
 
@@ -41,6 +49,12 @@ describe RedTrack::DataTypes do
       end
       it 'should reject string with integer in it' do
         expect { redtrack_datatypes.check_smallint("1") }.to raise_error
+      end
+      it 'should reject date' do
+        expect { redtrack_datatypes.check_smallint(Date.today)}.to raise_error
+      end
+      it 'should reject timestamp' do
+        expect { redtrack_datatypes.check_smallint(Time.now) }.to raise_error
       end
       it 'should reject hash object' do
         expect { redtrack_datatypes.check_smallint(fake_hash_object) }.to raise_error
@@ -68,6 +82,12 @@ describe RedTrack::DataTypes do
       it 'should reject string with integer in it' do
         expect { redtrack_datatypes.check_integer("1") }.to raise_error
       end
+      it 'should reject date' do
+        expect { redtrack_datatypes.check_integer(Date.today)}.to raise_error
+      end
+      it 'should reject timestamp' do
+        expect { redtrack_datatypes.check_integer(Time.now) }.to raise_error
+      end
       it 'should reject hash object' do
         expect { redtrack_datatypes.check_integer(fake_hash_object) }.to raise_error
       end
@@ -94,6 +114,12 @@ describe RedTrack::DataTypes do
       it 'should reject string with integer in it' do
         expect { redtrack_datatypes.check_bigint("1") }.to raise_error
       end
+      it 'should reject date' do
+        expect { redtrack_datatypes.check_bigint(Date.today)}.to raise_error
+      end
+      it 'should reject timestamp' do
+        expect { redtrack_datatypes.check_bigint(Time.now) }.to raise_error
+      end
       it 'should reject hash object' do
         expect { redtrack_datatypes.check_bigint(fake_hash_object) }.to raise_error
       end
@@ -119,6 +145,12 @@ describe RedTrack::DataTypes do
       it 'should reject strings with integer in it' do
         expect { redtrack_datatypes.check_decimal("1") }.to raise_error
       end
+      it 'should reject date' do
+        expect { redtrack_datatypes.check_decimal(Date.today)}.to raise_error
+      end
+      it 'should reject timestamp' do
+        expect { redtrack_datatypes.check_decimal(Time.now) }.to raise_error
+      end
       it 'should reject hash object' do
         expect { redtrack_datatypes.check_decimal(fake_hash_object) }.to raise_error
       end
@@ -141,6 +173,12 @@ describe RedTrack::DataTypes do
       end
       it 'should reject strings with integer in it' do
         expect { redtrack_datatypes.check_real("1") }.to raise_error
+      end
+      it 'should reject date' do
+        expect { redtrack_datatypes.check_real(Date.today)}.to raise_error
+      end
+      it 'should reject timestamp' do
+        expect { redtrack_datatypes.check_real(Time.now) }.to raise_error
       end
       it 'should reject hash object' do
         expect { redtrack_datatypes.check_real(fake_hash_object) }.to raise_error
@@ -165,6 +203,12 @@ describe RedTrack::DataTypes do
       it 'should reject strings with integer in it' do
         expect { redtrack_datatypes.check_double_precision("1") }.to raise_error
       end
+      it 'should reject date' do
+        expect { redtrack_datatypes.check_double_precision(Date.today)}.to raise_error
+      end
+      it 'should reject timestamp' do
+        expect { redtrack_datatypes.check_double_precision(Time.now) }.to raise_error
+      end
       it 'should reject hash object' do
         expect { redtrack_datatypes.check_double_precision(fake_hash_object) }.to raise_error
       end
@@ -176,19 +220,25 @@ describe RedTrack::DataTypes do
         expect(result).to eq(true)
       end
       it 'should reject integer' do
-        expect { redtrack_datatypes.check_varchar(1,"varchar(4)")}.to raise_error
+        expect { redtrack_datatypes.check_boolean(1,"varchar(4)")}.to raise_error
       end
       it 'should reject float' do
-        expect { redtrack_datatypes.check_varchar(1.1,"varchar(4)") }.to raise_error
+        expect { redtrack_datatypes.check_boolean(1.1,"varchar(4)") }.to raise_error
       end
       it 'should reject non-numeric string' do
-        expect { redtrack_datatypes.check_double_precision("a") }.to raise_error
+        expect { redtrack_datatypes.check_boolean("a") }.to raise_error
       end
       it 'should reject strings with integer in it' do
-        expect { redtrack_datatypes.check_double_precision("1") }.to raise_error
+        expect { redtrack_datatypes.check_boolean("1") }.to raise_error
+      end
+      it 'should reject date' do
+        expect { redtrack_datatypes.check_boolean(Date.today)}.to raise_error
+      end
+      it 'should reject timestamp' do
+        expect { redtrack_datatypes.check_boolean(Time.now) }.to raise_error
       end
       it 'should reject hash object' do
-        expect { redtrack_datatypes.check_double_precision(fake_hash_object) }.to raise_error
+        expect { redtrack_datatypes.check_boolean(fake_hash_object) }.to raise_error
       end
     end
 
@@ -209,6 +259,12 @@ describe RedTrack::DataTypes do
       end
       it 'should reject boolean value' do
         expect { redtrack_datatypes.check_char(true) }.to raise_error
+      end
+      it 'should reject date' do
+        expect { redtrack_datatypes.check_char(Date.today)}.to raise_error
+      end
+      it 'should reject timestamp' do
+        expect { redtrack_datatypes.check_char(Time.now) }.to raise_error
       end
       it 'should reject hash object' do
         expect { redtrack_datatypes.check_char(fake_hash_object,"char(4)") }.to raise_error
@@ -233,18 +289,69 @@ describe RedTrack::DataTypes do
       it 'should reject boolean value' do
         expect { redtrack_datatypes.check_varchar(true) }.to raise_error
       end
+      it 'should reject date' do
+        expect { redtrack_datatypes.check_varchar(Date.today)}.to raise_error
+      end
+      it 'should reject timestamp' do
+        expect { redtrack_datatypes.check_varchar(Time.now) }.to raise_error
+      end
       it 'should reject hash object' do
         expect { redtrack_datatypes.check_varchar(fake_hash_object,"varchar(4)") }.to raise_error
       end
     end
 
     context 'check_date()' do
-      # todo implement tests
+      it 'should accept date' do
+        result = redtrack_datatypes.check_date(valid_date)
+        expect(result).to eq('2014-12-05')
+      end
+      it 'should reject string' do
+        expect { redtrack_datatypes.check_date("test","varchar(4)") }.to raise_error
+      end
+      it 'should reject integer' do
+        expect { redtrack_datatypes.check_date(1,"varchar(4)")}.to raise_error
+      end
+      it 'should reject float' do
+        expect { redtrack_datatypes.check_date(1.1,"varchar(4)") }.to raise_error
+      end
+      it 'should reject boolean value' do
+        expect { redtrack_datatypes.check_date(true) }.to raise_error
+      end
+      it 'should reject timestamp' do
+        expect { redtrack_datatypes.check_date(Time.now) }.to raise_error
+      end
+      it 'should reject hash object' do
+        expect { redtrack_datatypes.check_date(fake_hash_object,"varchar(4)") }.to raise_error
+      end
     end
 
     context 'check_timestamp()' do
-      # todo implement tests
+      it 'should accept valid timestamp (utc) and convert to redshifts timezone-less format' do
+        result = redtrack_datatypes.check_timestamp(valid_timestamp_with_tz.utc)
+        expect(result).to eq('2014-12-05 04:30:00')
+      end
+      it 'should accept valid timestamp w/ timezone and convert to redshifts timezone-less format without converting timezone' do
+        result = redtrack_datatypes.check_timestamp(valid_timestamp_with_tz)
+        expect(result).to eq('2014-12-05 13:30:00')
+      end
+      it 'should reject string' do
+        expect { redtrack_datatypes.check_timestamp("test","varchar(4)") }.to raise_error
+      end
+      it 'should reject integer' do
+        expect { redtrack_datatypes.check_timestamp(1)}.to raise_error
+      end
+      it 'should reject float' do
+        expect { redtrack_datatypes.check_timestamp(1.1) }.to raise_error
+      end
+      it 'should reject boolean' do
+        expect { redtrack_datatypes.check_timestamp(true) }.to raise_error
+      end
+      it 'should reject date' do
+        expect { redtrack_datatypes.check_timestamp(Date.today)}.to raise_error
+      end
+      it 'should reject hash object' do
+        expect { redtrack_datatypes.check_timestamp(fake_hash_object,"varchar(4)") }.to raise_error
+      end
     end
-
   end
 end
