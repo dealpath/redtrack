@@ -185,11 +185,6 @@ module RedTrack
         raise_exception(column_name,value,type_definition,"Time")
       end
 
-      # Check to see if UTC
-      if @options[:convert_timestamps_utc] == true
-        value = value.utc
-      end
-
       # Return value in default timestamp format for redshift: (YYYY-MM-DD HH:MI:SS)
       return value.strftime("%Y-%m-%d %H:%M:%S")
     end
