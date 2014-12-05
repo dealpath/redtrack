@@ -524,7 +524,7 @@ module RedTrack
         exec(insert_query)
 
         # Load manifest into redshift & commit transaction if successful
-        load_file_result=load_file_into_redshift(redshift_table,manifest_s3_url)
+        load_file_result = load_file_into_redshift(redshift_table,manifest_s3_url)
         if load_file_result[:success] == true
           exec('COMMIT')
         else
@@ -540,9 +540,21 @@ module RedTrack
         @logger.warn("#{TAG} Exception caught: #{e.class}: #{e.message}\n\t#{e.backtrace.join("\n\t")}")
         exec('ROLLBACK')
 
+        # Get list of files in the manifest
+        manifest_files = []
+        shards_to_load.each do |shard_to_load|
+          shard_to_load[:s3_urls].each do |s3_url|
+            manifest_files << s3_url
+          end
+        end
+
+        # Query for load errors
+        load_error = get_last_load_errors(redshift_table,manifest_files)
+        @logger.warn("Load Error: #{YAML::dump(load_error)}")
         result = {
             :success => false,
-            :exception => e
+            :exception => e,
+            :load_error => load_error
         }
       end
 
@@ -572,21 +584,11 @@ module RedTrack
         records = matches[1].to_i
       }
 
-      begin
-        exec(cmd)
-        result = {
-            :success => true,
-            :records => records
-        }
-      rescue Exception => e
-        # Catch a copy command exception & Get information about the error
-        @logger.warn("#{TAG} Exception caught: #{e.class}: #{e.message}\n\t#{e.backtrace.join("\n\t")}")
-        load_error = get_last_load_errors(redshift_table,s3_url)
-        result = {
-            :success => false,
-            :load_error => load_error
-        }
-      end
+      exec(cmd)
+      result = {
+          :success => true,
+          :records => records
+      }
 
       return result
     end
@@ -594,14 +596,14 @@ module RedTrack
     # Print the last load error for a specific redshift table
     #
     # @param [String] redshift_table The name of the redshift table
-    # @param [String] s3_url The s3 url that was attempted to be loaded into redshift
-    def get_last_load_errors(redshift_table,s3_url)
+    # @param [Array] s3_urls The s3 urls that were loaded into redshift
+    def get_last_load_errors(redshift_table,s3_urls)
 
       # Query to get recent load errors matching table and s3 url
-      cmd = 'select  tbl, trim(name) as table_name, starttime, filename, line_number, raw_line,' +
-        'colname, raw_field_value, err_code, trim(err_reason) as reason ' +
+      cmd = 'select  tbl, trim(name) as table_name, starttime, trim(filename) as filename, line_number, trim(raw_line) as raw_line,' +
+        'trim(colname) as colname, trim(raw_field_value) as raw_field_value, err_code, trim(err_reason) as err_reason ' +
         'from stl_load_errors sl, stv_tbl_perm sp ' +
-        "where sl.tbl = sp.id AND sp.name='#{redshift_table}' AND sl.filename='#{s3_url}' " +
+        "where sl.tbl = sp.id AND sp.name='#{redshift_table}' AND sl.filename IN ('#{s3_urls.join("','")}') " +
         'ORDER BY starttime DESC LIMIT 20;'
       result_set=exec(cmd)
 
