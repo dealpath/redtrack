@@ -153,18 +153,19 @@ For an application example, see [this example](https://github.com/lrajlich/sinat
 
 4) Table dist key. The table's ```distkey``` determines how data is distributed amongst the nodes in your cluster. By default, Redshift distributes data in round robin mechanism. In general, you want to pick a distkey that allows Redshift to execute your queries across all nodes in your cluster evenly, so, for example, you do not want columns used in WHERE clauses.
 
-#### Redshift Type Support
+#### Redshift Types
 
 Since Redtrack does asynchronous loading of events, the events are filtered before they are written to the broker in order to avoid COPY errors and to provide direct feedback to the caller of the ```write``` function
 
-```varchar(n)``` Supported. Current behavior is to truncate any strings that exceed the provided length<br/>
-```char``` Supported. <br/>
-```smallint``` Supported. <br/>
-```bigint``` Supported. <br/>
-```timestamp``` Partially Supported. Not all time formats are supported. Timeformat for Redshift is very restrictive (simply checking for a valid Ruby time is not sufficient) and thus this is done via string matching. [Documentation](http://docs.aws.amazon.com/redshift/latest/dg/r_DATEFORMAT_and_TIMEFORMAT_strings.html)<br/>
-```decimal``` Supported. Checks that the value is a numeric, eg, converts to float.
-
-Redtrack type filtering is done [here](https://github.com/redhotlabs/redtrack/blob/master/lib/redtrack_datatypes.rb) and contributions to filtering logic are welcome.
+```smallint``` Redtrack expects [Ruby Integer](http://www.ruby-doc.org/core-2.1.5/Integer.html). Does not check for overflow. ([redshift numeric types documentation](http://docs.aws.amazon.com/redshift/latest/dg/r_Numeric_types201.html)) <br/>
+```integer``` Redtrack expects [Ruby Integer](http://www.ruby-doc.org/core-2.1.5/Integer.html). Does not check for overflow. ([redshift numeric types documentation](http://docs.aws.amazon.com/redshift/latest/dg/r_Numeric_types201.html)) <br/>
+```bigint``` Redtrack expects [Ruby Integer](http://www.ruby-doc.org/core-2.1.5/Integer.html). Does not check for overflow. ([redshift numeric types documentation](http://docs.aws.amazon.com/redshift/latest/dg/r_Numeric_types201.html))<br/>
+```varchar(n)``` Redtrack expects [Ruby String](http://www.ruby-doc.org/core-2.1.4/String.html). Redtrack accepts and truncates any strings that exceeds the provided length. ([redshift character type documentation](http://docs.aws.amazon.com/redshift/latest/dg/r_Character_types.html))<br/>
+```char(n)``` Redtrack expects [Ruby String](http://www.ruby-doc.org/core-2.1.4/String.html). Redtrack accepts and truncates any strings that exceeds the provided length. ([redshift character type documentation](http://docs.aws.amazon.com/redshift/latest/dg/r_Character_types.html))<br/>
+```decimal(precision,scale)``` Redtrack expects [Ruby BigDecimal](http://www.ruby-doc.org/stdlib-1.9.3/libdoc/bigdecimal/rdoc/BigDecimal.html). Does not check that the big decimal fits within the columns precision or scale ([redshift numeric documentation](http://docs.aws.amazon.com/redshift/latest/dg/r_Numeric_types201.html))<br/>
+```boolean``` Redtrack expects [FalseClass](http://www.ruby-doc.org/core-2.1.5/FalseClass.html) or [TrueClass](http://www.ruby-doc.org/core-2.1.5/TrueClass.html). Redtrack Does not support "unknown". ([redshift boolean documentation](http://docs.aws.amazon.com/redshift/latest/dg/r_Boolean_type.html))<br/>
+```date``` Redtrack expects [Ruby Date](http://ruby-doc.org/stdlib-2.1.5/libdoc/date/rdoc/Date.html). ([redshift datetime types documentation](http://docs.aws.amazon.com/redshift/latest/dg/r_Datetime_types.html))<br/>
+```timestamp``` Redtrack expects [Ruby Time](http://www.ruby-doc.org/core-2.1.5/Time.html). Redshift does not store timezones and Redtrack does not do any timezone conversion, so consider sending data using UTC timezone, otherwise you'll have a possibility of timezone mismatches in the event that servers have inconsistent timezone settings. ([redshift datetime types documentation](http://docs.aws.amazon.com/redshift/latest/dg/r_Datetime_types.html))
 
 #### Unsupported Redshift schema options
 
