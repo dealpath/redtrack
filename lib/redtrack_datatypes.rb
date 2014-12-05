@@ -205,14 +205,6 @@ module RedTrack
       raise message
     end
 
-    # Determine whether the typed value is a legit number, (eg, string)
-    #
-    # @param [Numeric] value The value to check as valid numeric
-    # @return [Boolean] Whether or not the value is a numeric
-    def is_numeric(value)
-      Float(value) != nil rescue false
-    end
-
     def truncate_string(column_name,value,type_definition)
       num_chars = type_definition[/\((\d*)\)/,1].to_i
       if(value.length > num_chars)
