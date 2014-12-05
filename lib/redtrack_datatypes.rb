@@ -12,6 +12,14 @@ module RedTrack
 
     TAG = 'RedTrack::DataTypes'
 
+    # Valid ranges for numeric types (http://docs.aws.amazon.com/redshift/latest/dg/r_Numeric_types201.html)
+    MIN_SMALLINT=-32768
+    MAX_SMALLINT=32767
+    MIN_INTEGER=-2147483648
+    MAX_INTEGER=2147483647
+    MIN_BIGINT=-9223372036854775808
+    MAX_BIGINT=9223372036854775807
+
     # Constructor - non-static... Want runtime bound interface
     def initialize(options)
       if options && options[:logger] != nil
@@ -39,7 +47,10 @@ module RedTrack
       if value.is_a?(Integer) == false
         raise_exception(column_name,value,type_definition,"Integer")
       end
-      # TODO: Range / overflow check
+
+      # Range check (http://docs.aws.amazon.com/redshift/latest/dg/r_Numeric_types201.html)
+      range_check(value,MIN_SMALLINT,MAX_SMALLINT,'smallint',column_name)
+
       return value
     end
 
@@ -53,7 +64,10 @@ module RedTrack
       if value.is_a?(Integer) == false
         raise_exception(column_name,value,type_definition,"Integer")
       end
-      # TODO: range / overflow check
+
+      # Range check (http://docs.aws.amazon.com/redshift/latest/dg/r_Numeric_types201.html)
+      range_check(value,MIN_INTEGER,MAX_INTEGER,'integer',column_name)
+
       return value
     end
 
@@ -67,7 +81,10 @@ module RedTrack
       if value.is_a?(Integer) == false
         raise_exception(column_name,value,type_definition,"Integer")
       end
-      # TODO: range /overflow check
+
+      # Range check (http://docs.aws.amazon.com/redshift/latest/dg/r_Numeric_types201.html)
+      range_check(value,MIN_BIGINT,MAX_BIGINT,'bigint',column_name)
+
       return value
     end
 
@@ -190,6 +207,12 @@ module RedTrack
     end
 
     private
+
+    def range_check(value,min,max,redshift_type,column_name)
+      if value < min || value > max
+        raise "Value for #{column_name}, #{value}, is out of range for #{redshift_type} (#{min} to #{max})"
+      end
+    end
 
     # Helper function, raise a general exception message
     #

@@ -38,6 +38,12 @@ describe RedTrack::DataTypes do
         result = redtrack_datatypes.check_smallint(-1)
         expect(result).to eq(-1)
       end
+      it 'should reject out of range integer' do
+        expect { redtrack_datatypes.check_smallint(RedTrack::Datatypes::MAX_SMALLINT + 1) }.to raise_error
+      end
+      it 'should reject out of range negative integer' do
+        expect { redtrack_datatypes.check_smallint(RedTrack::Datatypes::MIN_SMALLINT - 1) }.to raise_error
+      end
       it 'should reject float value' do
         expect { redtrack_datatypes.check_smallint(1.1) }.to raise_error
       end
@@ -70,6 +76,12 @@ describe RedTrack::DataTypes do
         result = redtrack_datatypes.check_integer(-1)
         expect(result).to eq(-1)
       end
+      it 'should reject out of range integer' do
+        expect { redtrack_datatypes.check_integer(RedTrack::Datatypes::MAX_INTEGER + 1) }.to raise_error
+      end
+      it 'should reject out of range negative integer' do
+        expect { redtrack_datatypes.check_integer(RedTrack::Datatypes::MIN_INTEGER - 1) }.to raise_error
+      end
       it 'should reject non-integer numeric value' do
         expect { redtrack_datatypes.check_integer(1.1) }.to raise_error
       end
@@ -101,6 +113,12 @@ describe RedTrack::DataTypes do
       it 'should accept valid negative integer' do
         result = redtrack_datatypes.check_bigint(-1)
         expect(result).to eq(-1)
+      end
+      it 'should reject out of range integer' do
+        expect { redtrack_datatypes.check_bigint(RedTrack::Datatypes::MAX_BIGINT + 1) }.to raise_error
+      end
+      it 'should reject out of range negative integer' do
+        expect { redtrack_datatypes.check_bigint(RedTrack::Datatypes::MIN_BIGINT - 1) }.to raise_error
       end
       it 'should reject float value' do
         expect { redtrack_datatypes.check_bigint(1.1) }.to raise_error
@@ -247,7 +265,7 @@ describe RedTrack::DataTypes do
         result = redtrack_datatypes.check_char("test","char(4)")
         expect(result).to eq ("test")
       end
-      it 'should truncate long string' do
+      it 'should accept & truncate long string' do
         result = redtrack_datatypes.check_char("testtest","char(4)")
         expect(result).to eq ("test")
       end
@@ -276,7 +294,7 @@ describe RedTrack::DataTypes do
         result = redtrack_datatypes.check_varchar("test","varchar(4)")
         expect(result).to eq ("test")
       end
-      it 'should truncate long string' do
+      it 'should accept & truncate long string' do
         result = redtrack_datatypes.check_varchar("testtest","varchar(4)")
         expect(result).to eq ("test")
       end
