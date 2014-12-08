@@ -55,6 +55,8 @@ redtrack_client = RedTrack::Client.new(redtrack_options)
 ```:redshift_password``` Required. String. Password used for the above user<br/>
 ```:redshift_schema``` Required. Hash. Schema definition for redshift. For more information, see [Redshift Schema section](https://github.com/redhotlabs/redtrack#redshift-schema)<br/>
 ```:kinesis_enabled``` Required. Bool. When "true", uses Kinesis for data broker. When "false", writes to a file as a broker instead of Kinesis (use that configuration for development only).<br/>
+```:get_record_requests``` Optional. Number of requests to make to get data from Kinesis before loading into Redshift. Default: 100.
+```:get_records_limit``` Optional. Number of records to return in each GetRecords request. [GetRecords Limit documentation](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html#Kinesis-GetRecords-request-Limit)
 
 For an example / template configuration, see [example configuration](https://github.com/lrajlich/sinatra_example/blob/master/configuration.rb)
 
