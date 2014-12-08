@@ -10,8 +10,8 @@ module RedTrack
 
     TAG='RedTrack::KinesisClient'
 
-    DEFAULT_MAX_RECORDS=1000000
-    DEFAULT_MAX_REQUESTS=100
+    DEFAULT_GET_RECORD_REQUESTS=100
+    DEFAULT_GET_RECORDS_LIMIT=10000
 
     # Setup instance variables for kinesis access
     #
@@ -118,12 +118,11 @@ module RedTrack
     #
     # @param [String] shard_iterator  The shard iterator to start reading from - result of get_shard_iterator
     # @param [String] files Array of files to write data into
-    # @param [Hash] options Optional. Can specify :max_records, :max_requests
     # @return [Hash] Hash of # of records read and the sequence number of the last read record, number of records, and shard iterator
-    def stream_read_from_shard_iterator_into_files(shard_iterator, files, options={})
+    def stream_read_from_shard_iterator_into_files(shard_iterator, files)
 
-      max_records = options[:max_records] || DEFAULT_MAX_RECORDS
-      max_requests = options[:max_requests] || DEFAULT_MAX_REQUESTS
+      max_requests = @options[:get_record_requests] || DEFAULT_GET_RECORD_REQUESTS
+      get_records_limit = @options[:get_records_limit] || DEFAULT_GET_RECORDS_LIMIT
 
       start_sequence_number=nil
       end_sequence_number=nil
@@ -133,7 +132,7 @@ module RedTrack
       for i in 0..max_requests
 
         # Execute get_records against AWS Kinesis
-        get_records_response = AWS.kinesis.client.get_records({:shard_iterator => shard_iterator})
+        get_records_response = AWS.kinesis.client.get_records({:shard_iterator => shard_iterator, :limit => get_records_limit})
 
         # Process records
         if get_records_response != nil && get_records_response.data != nil && get_records_response.data[:records] != nil && get_records_response.data[:records].count > 0
@@ -157,9 +156,6 @@ module RedTrack
 
             # Increment records read; check exit condition
             records+=1
-            if (records >= max_records)
-              break
-            end
           end
         end
 
@@ -167,7 +163,7 @@ module RedTrack
         shard_iterator=get_records_response.data[:next_shard_iterator]
 
         # Check exit conditions
-        if(shard_iterator == nil || records >= max_records)
+        if shard_iterator == nil
           break
         end
       end
@@ -232,6 +228,53 @@ module RedTrack
       end
 
       return result
+    end
+
+    # Split each shard of a kinesis stream into 2 shards. Distributes hash ring evenly amongst new shards
+    #
+    # @param [String] stream_name The name of the stream to split into 2
+    def split_stream_shards(stream_name)
+      describe_response = AWS.kinesis.client.describe_stream({:stream_name => stream_name})
+      shards = describe_response[:stream_description][:shards]
+
+      # build list of shards to update
+      shards_to_split = []
+      shards.each do |shard|
+        if shard[:sequence_number_range][:ending_sequence_number] == nil
+          shards_to_split << {
+              :shard_id => shard[:shard_id],
+              :mid_hash_range => (shard[:hash_key_range][:starting_hash_key].to_i+ shard[:hash_key_range][:ending_hash_key].to_i)/2
+          }
+        end
+      end
+
+      # iterate through shards - wait loop after each split
+      shards_to_split.each do |shard_to_split|
+
+        @logger.debug("Split shard #{shard_to_split[:shard_id]}")
+
+        # ensure that the shard is in "ACTIVE" state, after each split, the shard will be in "UPDATING" state for a short period of time
+        retries = 0
+        describe_response = AWS.kinesis.client.describe_stream({:stream_name => stream_name})
+        while describe_response[:stream_description][:stream_status] != "ACTIVE"
+          if retries > 6
+            raise "Stream #{stream_name} is not in 'ACTIVE' state, instead it is stuck in #{describe_response[:stream_description][:stream_status]}"
+          end
+          @logger.debug("Stream #{stream_name} is in #{describe_response[:stream_description][:stream_status]} state, wait 10 seconds for it to change to ACTIVE")
+          sleep 10
+          retries += 1
+          describe_response = AWS.kinesis.client.describe_stream({:stream_name => stream_name})
+        end
+
+        # split the shard
+        split_shard_options = {
+            :stream_name => stream_name,
+            :shard_to_split => shard_to_split[:shard_id],
+            :new_starting_hash_key => shard_to_split[:mid_hash_range].to_s
+        }
+        split_shard_result = AWS.kinesis.client.split_shard(split_shard_options)
+      end
+      @logger.debug("All shards split!")
     end
 
   end

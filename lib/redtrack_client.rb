@@ -41,7 +41,8 @@ module RedTrack
       aws_options = {
           :access_key_id => options[:access_key_id],
           :secret_access_key => options[:secret_access_key],
-          :region => options[:region]
+          :region => options[:region],
+          :logger => @logger
       }
       AWS.config(aws_options)
 
@@ -254,6 +255,18 @@ module RedTrack
       result = false
       if @options[:kinesis_enabled]
         result = @broker.create_kinesis_stream_for_table(table,shard_count)
+      else
+        @logger.warn("#{TAG} Kinesis is not enabled. Nothing done.")
+      end
+      return result
+    end
+
+    # Split each shard of a kinesis stream into 2 shards. Distributes hash ring evenly amongst new shards
+    #
+    # @param [String] table The name of the redshift table for which we want to split its kinesis stream into 2
+    def split_kinesis_stream_shards(table)
+      if @options[:kinesis_enabled]
+        result = @broker.split_stream_shards(@broker.stream_name(table))
       else
         @logger.warn("#{TAG} Kinesis is not enabled. Nothing done.")
       end
